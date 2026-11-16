@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Ocarina Songs</title>
+<meta name="theme-color" content="#10241c">
+<meta name="description" content="Ocarina of Time remake song inputs with Xbox buttons.">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<style>
+  :root{
+    --bg:#10241c; --card:#173328; --card2:#1d3d31; --ink:#eef3ea; --muted:#a8bcae;
+    --gold:#e8c35a; --line:#2a4a3d;
+    --a:#5dbb3f; --b:#e0453a; --x:#3a7fe0; --y:#f0c419;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--ink);
+    font:16px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-tap-highlight-color:transparent}
+  header{position:sticky;top:0;z-index:2;background:var(--bg);
+    padding:calc(14px + env(safe-area-inset-top)) 16px 10px;border-bottom:1px solid var(--line)}
+  h1{margin:0 0 10px;font-size:20px;letter-spacing:.2px;display:flex;align-items:center;gap:8px}
+  h1 .tri{color:var(--gold)}
+  .row{display:flex;gap:8px}
+  input[type=search]{flex:1;min-width:0;background:var(--card);color:var(--ink);border:1px solid var(--line);
+    border-radius:12px;padding:11px 12px;font-size:16px;outline:none}
+  input[type=search]:focus{border-color:var(--gold)}
+  .seg{display:flex;background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+  .seg button{background:none;border:0;color:var(--muted);padding:0 12px;font-size:14px;font-weight:600}
+  .seg button.on{background:var(--gold);color:#1b1b10}
+  main{padding:8px 12px calc(24px + env(safe-area-inset-bottom))}
+  h2{font-size:13px;text-transform:uppercase;letter-spacing:1px;color:var(--gold);margin:18px 6px 8px}
+  .song{background:var(--card);border:1px solid var(--line);border-radius:14px;margin:0 0 8px;overflow:hidden}
+  .song summary{list-style:none;padding:12px 14px;cursor:pointer}
+  .song summary::-webkit-details-marker{display:none}
+  .name{font-weight:650;font-size:16px;margin-bottom:8px;display:flex;justify-content:space-between}
+  .name .chev{color:var(--muted);transition:transform .2s}
+  .song[open] .chev{transform:rotate(90deg)}
+  .keys{display:flex;flex-wrap:wrap;gap:6px}
+  .k{display:inline-grid;place-items:center;width:34px;height:34px;border-radius:50%;
+    font-weight:800;font-size:15px;color:#fff;box-shadow:inset 0 -3px 0 rgba(0,0,0,.25)}
+  .k.A{background:var(--a)} .k.B{background:var(--b)} .k.X{background:var(--x)} .k.Y{background:var(--y);color:#2b2300}
+  .k.bump{width:44px;border-radius:10px;background:#4a5550;font-size:13px}
+  .k.sw{background:#33433c}
+  .k.sw.A,.k.sw.B,.k.sw.X,.k.sw.Y{color:#fff}
+  .info{padding:0 14px 14px;color:var(--muted);font-size:14px;border-top:1px solid var(--line);background:var(--card2)}
+  .info p{margin:10px 0 0}
+  .info b{color:var(--ink);font-weight:600}
+  .empty{color:var(--muted);text-align:center;padding:40px 0}
+  footer{color:var(--muted);font-size:12px;text-align:center;margin-top:18px}
+  .scar-actions{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+  .btn{background:var(--card);color:var(--ink);border:1px solid var(--line);border-radius:10px;
+    padding:9px 14px;font-size:14px;font-weight:600}
+  .btn.gold{background:var(--gold);color:#1b1b10;border-color:var(--gold)}
+  .btn.danger{color:#ff9b92}
+  .add{width:100%;margin:2px 0 8px;padding:12px;border-style:dashed;color:var(--gold);background:none}
+  .editor{background:var(--card);border:1px solid var(--gold);border-radius:14px;padding:14px;margin:0 0 8px}
+  .editor input{width:100%;background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:10px;
+    padding:10px 12px;font-size:16px;font-weight:650;outline:none;margin-bottom:10px}
+  .editor .keys{min-height:42px;padding:6px;border:1px dashed var(--line);border-radius:10px;margin-bottom:6px}
+  .editor .hint{color:var(--muted);font-size:13px;margin:0 0 10px}
+  .pad{display:flex;justify-content:space-between;gap:6px;margin-bottom:10px}
+  .pad button{border:0;padding:0;background:none}
+  .pad .k{width:48px;height:48px;font-size:18px}
+  .pad .k.bump{width:58px;font-size:15px}
+  .tools{display:flex;gap:8px;flex-wrap:wrap}
+</style>
+</head>
+<body>
+<header>
+  <h1><span class="tri">▲</span> Ocarina Songs</h1>
+  <div class="row">
+    <input id="q" type="search" placeholder="Search songs or places…" autocomplete="off">
+    <div class="seg" role="group" aria-label="Controller">
+      <button id="bx" class="on">Xbox</button>
+      <button id="bs">Switch</button>
+    </div>
+  </div>
+</header>
+<main id="list"></main>
+
+<script>
+// Inputs stored as Switch-style letters. Xbox: A↔B, X↔Y, L→LB, R→RB.
+const SONGS = [
+  {g:"Main songs", n:"Zelda's Lullaby", i:"Y X A Y X A", get:"Meet Princess Zelda at Hyrule Castle.", does:"Solves Triforce-symbol puzzles and opens passages.", tags:"hyrule castle triforce"},
+  {g:"Main songs", n:"Epona's Song", i:"X Y A X Y A", get:"Talk to Malon in the Lon Lon Ranch horse pen.", does:"Calls Epona (once you have her as adult Link).", tags:"horse lon lon ranch malon"},
+  {g:"Main songs", n:"Saria's Song", i:"R A Y R A Y", get:"Saria in Sacred Forest Meadow, after meeting Zelda.", does:"Hints from Saria, cheers up Darunia, gets Mido to let you through.", tags:"lost woods darunia mido"},
+  {g:"Main songs", n:"Sun's Song", i:"A R X A R X", get:"Play Zelda's Lullaby at the Royal Family's Tomb, Kakariko Graveyard.", does:"Flips day and night; stuns Gibdos and ReDeads.", tags:"day night redead gibdo"},
+  {g:"Main songs", n:"Song of Time", i:"A L R A L R", get:"Return to Castle Town with all three Spiritual Stones and the Ocarina of Time.", does:"Opens the Door of Time; moves blue Song of Time blocks.", tags:"door of time master sword blocks"},
+  {g:"Main songs", n:"Song of Storms", i:"L R X L R X", get:"Adult Link: the man in the Kakariko windmill.", does:"Makes rain, drains the Kakariko well (play it in the windmill), reveals grottos.", tags:"rain windmill well grotto"},
+  {g:"Warp songs", n:"Minuet of Forest", i:"L X Y A Y A", get:"Adult Link: Sheik in Sacred Forest Meadow.", does:"Warps to Sacred Forest Meadow.", tags:"forest temple sacred grove meadow warp"},
+  {g:"Warp songs", n:"Bolero of Fire", i:"R L R L A R A R", get:"Adult Link: Sheik in Death Mountain Crater (Hookshot across the bridge).", does:"Warps to Death Mountain Crater.", tags:"fire temple death mountain crater warp"},
+  {g:"Warp songs", n:"Serenade of Water", i:"L R A A Y", get:"Sheik at the Ice Cavern, after getting the Iron Boots.", does:"Warps to Lake Hylia.", tags:"water temple lake hylia warp"},
+  {g:"Warp songs", n:"Nocturne of Shadow", i:"Y A A L Y A R", get:"Kakariko Village after the Forest, Fire and Water Temples.", does:"Warps to Kakariko Graveyard (upper area).", tags:"shadow temple kakariko graveyard warp"},
+  {g:"Warp songs", n:"Requiem of Spirit", i:"L R L A R L", get:"Sheik at Desert Colossus, after entering and leaving the Spirit Temple.", does:"Warps to Desert Colossus.", tags:"spirit temple desert colossus warp"},
+  {g:"Warp songs", n:"Prelude of Light", i:"X A X A Y X", get:"Sheik at the Master Sword pedestal, Temple of Time.", does:"Warps to the Temple of Time.", tags:"temple of time light master sword warp"}
+];
+// Starting scarecrow songs. Edits are saved on each phone separately.
+const SCARECROW_DEFAULT = [
+  {id:"s1", n:"Scarecrow's Song", i:"Y R A R Y X A"},
+  {id:"s2", n:"Scarecrow Song 2", i:"Y X A Y X A Y X A Y X A Y X A L R X Y L X Y L A L X Y"}
+];
+const NOTES = ["A","X","Y","L","R"];           // the five ocarina notes (stored form)
+const XBOX = {A:"B", B:"A", X:"Y", Y:"X", L:"LB", R:"RB"};
+
+const store = {
+  get(k, d){ try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch(e){ return d; } },
+  set(k, v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch(e){} }
+};
+let mode = store.get("ocarina-mode", "xbox");
+let scarecrows = store.get("ocarina-scarecrows", null) || SCARECROW_DEFAULT.map(s => ({...s}));
+let editing = null;   // {id, n, notes:[]} while the editor is open
+let openIds = new Set();
+
+const $ = s => document.querySelector(s);
+const list = $("#list"), q = $("#q");
+const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+function label(k){ return mode === "xbox" ? XBOX[k] : k; }
+function keyHTML(k){
+  const out = label(k);
+  const bump = k === "L" || k === "R";
+  const cls = bump ? "bump" : (mode === "xbox" ? out : "sw " + out);
+  return `<span class="k ${cls}">${out}</span>`;
+}
+const keysHTML = str => str.trim() ? str.trim().split(/\s+/).map(keyHTML).join("") : "";
+
+function songCard(s, id, extra){
+  const open = openIds.has(id) || extra.forceOpen;
+  return `<details class="song" data-id="${id}"${open ? " open" : ""}><summary>
+    <div class="name"><span>${esc(s.n)}</span><span class="chev">›</span></div>
+    <div class="keys">${keysHTML(s.i) || '<span class="hint">No notes yet</span>'}</div></summary>
+    <div class="info">${extra.body}</div></details>`;
+}
+
+function editorHTML(){
+  const pad = NOTES.map(k => `<button data-note="${k}" aria-label="${label(k)}">${keyHTML(k)}</button>`).join("");
+  return `<div class="editor">
+    <input id="ename" value="${esc(editing.n)}" placeholder="Song name" maxlength="40">
+    <div class="keys" id="enotes">${keysHTML(editing.notes.join(" "))}</div>
+    <p class="hint">Tap the buttons in order. ${editing.notes.length} note${editing.notes.length === 1 ? "" : "s"}.</p>
+    <div class="pad">${pad}</div>
+    <div class="tools">
+      <button class="btn" data-act="undo">⌫ Undo</button>
+      <button class="btn" data-act="clear">Clear</button>
+      <span style="flex:1"></span>
+      <button class="btn" data-act="cancel">Cancel</button>
+      <button class="btn gold" data-act="save">Save</button>
+    </div></div>`;
+}
+
+function render(){
+  const term = q.value.trim().toLowerCase();
+  const match = s => !term || (s.n + " " + (s.tags||"") + " " + (s.does||"") + " " + (s.get||"")).toLowerCase().includes(term);
+  let html = "";
+  const groups = ["Main songs", "Scarecrow songs", "Warp songs"];
+  for (const g of groups){
+    let part = "";
+    if (g === "Scarecrow songs"){
+      for (const s of scarecrows){
+        if (editing && editing.id === s.id){ part += editorHTML(); continue; }
+        if (!match({...s, tags:"scarecrow pierre bonooru custom"})) continue;
+        part += songCard(s, s.id, {forceOpen: !!term, body:
+          `<p>Your own tune for Pierre the scarecrow, who becomes a Hookshot target. Learn it from the scarecrows at Lake Hylia.</p>
+           <div class="scar-actions"><button class="btn" data-edit="${s.id}">✎ Edit notes</button>
+           <button class="btn danger" data-del="${s.id}">Delete</button></div>`});
+      }
+      if (editing && editing.id === "new") part += editorHTML();
+      if (!term && !editing) part += `<button class="btn add" data-act="add">+ Add a scarecrow song</button>`;
+    } else {
+      for (const s of SONGS.filter(s => s.g === g && match(s))){
+        part += songCard(s, s.n, {forceOpen: !!term, body:
+          `<p><b>What it does:</b> ${s.does}</p><p><b>Where to learn it:</b> ${s.get}</p>`});
+      }
+    }
+    if (part) html += `<h2>${g}</h2>` + part;
+  }
+  if (!html) html = `<div class="empty">No songs match “${esc(q.value)}”</div>`;
+  html += `<footer>Song list from Destructoid · Xbox layout swaps A↔B and X↔Y<br>Scarecrow songs are saved on this phone only</footer>`;
+  list.innerHTML = html;
+  if (editing){ const n = $("#ename"); if (n) n.addEventListener("input", e => editing.n = e.target.value); }
+}
+
+function save(){ store.set("ocarina-scarecrows", scarecrows); }
+
+list.addEventListener("toggle", e => {
+  const d = e.target.closest && e.target.closest("details.song"); if (!d) return;
+  d.open ? openIds.add(d.dataset.id) : openIds.delete(d.dataset.id);
+}, true);
+
+list.addEventListener("click", e => {
+  const b = e.target.closest("button"); if (!b) return;
+  if (b.dataset.edit){
+    const s = scarecrows.find(x => x.id === b.dataset.edit);
+    editing = {id:s.id, n:s.n, notes: s.i.trim() ? s.i.trim().split(/\s+/) : []};
+    q.value = ""; render(); $(".editor").scrollIntoView({block:"center", behavior:"smooth"}); return;
+  }
+  if (b.dataset.del){
+    const s = scarecrows.find(x => x.id === b.dataset.del);
+    if (confirm(`Delete “${s.n}”?`)){ scarecrows = scarecrows.filter(x => x !== s); save(); render(); }
+    return;
+  }
+  if (b.dataset.note && editing){
+    editing.notes.push(b.dataset.note);
+    $("#enotes").innerHTML = keysHTML(editing.notes.join(" "));
+    $(".editor .hint").textContent = `Tap the buttons in order. ${editing.notes.length} note${editing.notes.length === 1 ? "" : "s"}.`;
+    if (navigator.vibrate) navigator.vibrate(10);
+    return;
+  }
+  const act = b.dataset.act;
+  if (act === "add"){ editing = {id:"new", n:"Scarecrow Song " + (scarecrows.length + 1), notes:[]}; render(); $(".editor").scrollIntoView({block:"center", behavior:"smooth"}); }
+  if (act === "undo" && editing){ editing.notes.pop(); render(); }
+  if (act === "clear" && editing){ editing.notes = []; render(); }
+  if (act === "cancel"){ editing = null; render(); }
+  if (act === "save" && editing){
+    const name = (editing.n || "").trim() || "Scarecrow Song";
+    const notes = editing.notes.join(" ");
+    if (editing.id === "new"){
+      const id = "s" + Date.now();
+      scarecrows.push({id, n:name, i:notes}); openIds.add(id);
+    } else {
+      const s = scarecrows.find(x => x.id === editing.id); s.n = name; s.i = notes; openIds.add(s.id);
+    }
+    editing = null; save(); render();
+  }
+});
+
+function setMode(m){
+  mode = m; store.set("ocarina-mode", m);
+  $("#bx").classList.toggle("on", m === "xbox");
+  $("#bs").classList.toggle("on", m === "switch");
+  render();
+}
+$("#bx").onclick = () => setMode("xbox");
+$("#bs").onclick = () => setMode("switch");
+q.addEventListener("input", render);
+setMode(mode);
+
+if ('serviceWorker' in navigator){
+  window.addEventListener('load', () => { navigator.serviceWorker.register('sw.js').catch(()=>{}); });
+}
+</script>
+</body>
+</html>
